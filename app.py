@@ -194,6 +194,7 @@ import json
 
 logging.basicConfig(level=logging.DEBUG)
 
+# Ensure that your TURN server credentials are correct
 RTC_CONFIGURATION = RTCConfiguration({
     "iceServers": [
         {"urls": ["stun:stun.l.google.com:19302"]},
