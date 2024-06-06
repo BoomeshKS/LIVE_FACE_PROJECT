@@ -1,4 +1,5 @@
 
+
 # import logging
 # import streamlit as st
 # from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, WebRtcMode, RTCConfiguration
@@ -9,25 +10,20 @@
 # from datetime import datetime
 # import json
 
-
 # logging.basicConfig(level=logging.DEBUG)
 
-# RTC_CONFIGURATION = RTCConfiguration(
-#     {
-#         "iceServers": [
-#             {"urls": ["stun:stun.l.google.com:19302"]},
-#             # Replace with your TURN server details
-#             {"urls": ["turn:YOUR_TURN_SERVER"], "username": "USERNAME", "credential": "PASSWORD"}
-#         ]
-#     }
-# )
-
+# # Ensure that your TURN server credentials are correct
+# RTC_CONFIGURATION = RTCConfiguration({
+#     "iceServers": [
+#         {"urls": ["stun:stun.l.google.com:19302"]},
+#         {"urls": ["turn:YOUR_TURN_SERVER"], "username": "USERNAME", "credential": "PASSWORD"}
+#     ]
+# })
 
 # if not os.path.exists('captured_images'):
 #     os.makedirs('captured_images')
 
 # METADATA_FILE = 'metadata.json'
-
 
 # def load_metadata():
 #     if os.path.exists(METADATA_FILE):
@@ -35,13 +31,11 @@
 #             return json.load(file)
 #     return []
 
-
 # def save_metadata(metadata):
 #     with open(METADATA_FILE, 'w') as file:
 #         json.dump(metadata, file)
 
 # metadata = load_metadata()
-
 
 # def compute_face_histogram(image, face_region):
 #     x, y, w, h = face_region
@@ -50,10 +44,11 @@
 #     face_hist = cv2.normalize(face_hist, face_hist).flatten()
 #     return face_hist
 
-
 # saved_face_histograms = []
 # for entry in metadata:
 #     img = cv2.imread(entry['file'])
+#     if img is None:
+#         continue
 #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 #     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 #     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
@@ -68,44 +63,51 @@
 #         self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 #     def recv(self, frame):
-#         frm = frame.to_ndarray(format="bgr24")
+#         try:
+#             frm = frame.to_ndarray(format="bgr24")
+#             gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
+#             faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-#         gray = cv2.cvtColor(frm, cv2.COLOR_BGR2GRAY)
-#         faces = self.face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+#             for (x, y, w, h) in faces:
+#                 face_hist = compute_face_histogram(frm, (x, y, w, h))
 
-#         for (x, y, w, h) in faces:
-#             face_hist = compute_face_histogram(frm, (x, y, w, h))
+#                 name = "Unknown"
+#                 number = ""
+#                 best_match_score = float('inf')
+#                 for saved_face_hist, saved_name, saved_number in saved_face_histograms:
+#                     score = cv2.compareHist(face_hist, saved_face_hist, cv2.HISTCMP_CORREL)
+#                     if score < best_match_score:
+#                         best_match_score = score
+#                         name = saved_name
+#                         number = saved_number
 
-#             name = "Unknown"
-#             number = ""
-#             best_match_score = float('inf')
-#             for saved_face_hist, saved_name, saved_number in saved_face_histograms:
-#                 score = cv2.compareHist(face_hist, saved_face_hist, cv2.HISTCMP_CORREL)
-#                 if score < best_match_score:
-#                     best_match_score = score
-#                     name = saved_name
-#                     number = saved_number
+#                 if best_match_score < 0.6:
+#                     cv2.putText(frm, f"{name} - {number}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+#                     cv2.rectangle(frm, (x, y), (x+w, y+h), (0, 255, 0), 2)
+#                 else:
+#                     cv2.rectangle(frm, (x, y), (x+w, y+h), (0, 0, 255), 2)
 
-#             if best_match_score < 0.6:  
-#                 cv2.putText(frm, f"{name} - {number}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-#                 cv2.rectangle(frm, (x, y), (x+w, y+h), (0, 255, 0), 2)
-#             else:
-#                 cv2.rectangle(frm, (x, y), (x+w, y+h), (0, 0, 255), 2)
+#             if self.capture_image:
+#                 self.capture_image = False
+#                 self.captured_frame = frm
 
-#         if self.capture_image:
-#             self.capture_image = False
-#             self.captured_frame = frm
-
-#         return av.VideoFrame.from_ndarray(frm, format="bgr24")
+#             return av.VideoFrame.from_ndarray(frm, format="bgr24")
+#         except Exception as e:
+#             logging.error(f"Error in recv: {e}")
+#             return av.VideoFrame.from_ndarray(np.zeros((480, 640, 3), dtype=np.uint8), format="bgr24")
 
 #     def get_captured_frame(self):
 #         return self.captured_frame
 
 # def save_frame(frame, name, number):
-#     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-#     filename = f"captured_images/{name}_{number}_{timestamp}.jpg"
-#     cv2.imwrite(filename, frame)
-#     return filename
+#     try:
+#         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#         filename = f"captured_images/{name}_{number}_{timestamp}.jpg"
+#         cv2.imwrite(filename, frame)
+#         return filename
+#     except Exception as e:
+#         logging.error(f"Error saving frame: {e}")
+#         return None
 
 # def display_saved_images():
 #     for entry in metadata:
@@ -163,20 +165,22 @@
 
 #             if st.button("Save Image"):
 #                 filename = save_frame(captured_frame, st.session_state['name'], st.session_state['number'])
-#                 metadata.append({
-#                     'name': st.session_state['name'],
-#                     'number': st.session_state['number'],
-#                     'file': filename
-#                 })
-#                 save_metadata(metadata)
-#                 st.success(f"Image saved as {filename}")
+#                 if filename:
+#                     metadata.append({
+#                         'name': st.session_state['name'],
+#                         'number': st.session_state['number'],
+#                         'file': filename
+#                     })
+#                     save_metadata(metadata)
+#                     st.success(f"Image saved as {filename}")
+#                 else:
+#                     st.error("Failed to save image")
 
 #     st.header("Saved Images")
 #     display_saved_images()
 
 # if __name__ == "__main__":
 #     main()
-
 
 
 
@@ -236,7 +240,7 @@ for entry in metadata:
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
     if len(faces) > 0:
         face_hist = compute_face_histogram(img, faces[0])
-        saved_face_histograms.append((face_hist, entry['name'], entry['number']))
+        saved_face_histograms.append((face_hist, entry['name'], entry['number'], entry.get('email', '')))
 
 class VideoProcessor(VideoProcessorBase):
     def __init__(self):
@@ -255,13 +259,15 @@ class VideoProcessor(VideoProcessorBase):
 
                 name = "Unknown"
                 number = ""
+                email = ""
                 best_match_score = float('inf')
-                for saved_face_hist, saved_name, saved_number in saved_face_histograms:
+                for saved_face_hist, saved_name, saved_number, saved_email in saved_face_histograms:
                     score = cv2.compareHist(face_hist, saved_face_hist, cv2.HISTCMP_CORREL)
                     if score < best_match_score:
                         best_match_score = score
                         name = saved_name
                         number = saved_number
+                        email = saved_email
 
                 if best_match_score < 0.6:
                     cv2.putText(frm, f"{name} - {number}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
@@ -281,7 +287,7 @@ class VideoProcessor(VideoProcessorBase):
     def get_captured_frame(self):
         return self.captured_frame
 
-def save_frame(frame, name, number):
+def save_frame(frame, name, number, email):
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"captured_images/{name}_{number}_{timestamp}.jpg"
@@ -293,7 +299,7 @@ def save_frame(frame, name, number):
 
 def display_saved_images():
     for entry in metadata:
-        st.image(entry['file'], caption=f"{entry['name']} - {entry['number']}")
+        st.image(entry['file'], caption=f"{entry['name']} - {entry['number']} - {entry.get('email', '')}")
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Delete", key=f"delete_{entry['file']}"):
@@ -309,14 +315,32 @@ def display_saved_images():
         if 'editing' in st.session_state and st.session_state['editing'] == entry:
             st.text_input("Edit Name", value=entry['name'], key=f"edit_name_{entry['file']}")
             st.text_input("Edit Number", value=entry['number'], key=f"edit_number_{entry['file']}")
+            st.text_input("Edit Email", value=entry.get('email', ''), key=f"edit_email_{entry['file']}")
             if st.button("Save Changes", key=f"save_changes_{entry['file']}"):
                 entry['name'] = st.session_state[f"edit_name_{entry['file']}"]
                 entry['number'] = st.session_state[f"edit_number_{entry['file']}"]
+                entry['email'] = st.session_state[f"edit_email_{entry['file']}"]
                 save_metadata(metadata)
                 del st.session_state['editing']
                 st.experimental_rerun()
         with col3:
             pass
+
+def reporting_screen():
+    st.header("Reporting Screen")
+    start_date = st.date_input("Start Date", value=datetime.now())
+    end_date = st.date_input("End Date", value=datetime.now())
+
+    if st.button("Generate Report"):
+        for entry in metadata:
+            try:
+                # Extract the timestamp from the filename
+                entry_date_str = entry['file'].split('_')[-1].split('.')[0]
+                entry_date = datetime.strptime(entry_date_str, "%Y%m%d_%H%M%S")
+                if start_date <= entry_date.date() <= end_date.date():
+                    st.image(entry['file'], caption=f"{entry['name']} - {entry['number']} - {entry.get('email', '')} on {entry_date}")
+            except ValueError as e:
+                logging.error(f"Error parsing date for file {entry['file']}: {e}")
 
 def main():
     st.title("Face Detection and Capture")
@@ -325,6 +349,8 @@ def main():
         st.session_state['name'] = ""
     if 'number' not in st.session_state:
         st.session_state['number'] = ""
+    if 'email' not in st.session_state:
+        st.session_state['email'] = ""
 
     ctx = webrtc_streamer(
         key="example",
@@ -344,13 +370,15 @@ def main():
 
             st.session_state['name'] = st.text_input("Enter Name", st.session_state['name'])
             st.session_state['number'] = st.text_input("Enter Number", st.session_state['number'])
+            st.session_state['email'] = st.text_input("Enter Email", st.session_state['email'])
 
             if st.button("Save Image"):
-                filename = save_frame(captured_frame, st.session_state['name'], st.session_state['number'])
+                filename = save_frame(captured_frame, st.session_state['name'], st.session_state['number'], st.session_state['email'])
                 if filename:
                     metadata.append({
                         'name': st.session_state['name'],
                         'number': st.session_state['number'],
+                        'email': st.session_state['email'],
                         'file': filename
                     })
                     save_metadata(metadata)
@@ -360,6 +388,9 @@ def main():
 
     st.header("Saved Images")
     display_saved_images()
+
+    st.header("Reporting")
+    reporting_screen()
 
 if __name__ == "__main__":
     main()
