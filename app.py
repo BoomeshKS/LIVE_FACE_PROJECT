@@ -330,17 +330,28 @@ def reporting_screen():
     st.header("Reporting Screen")
     start_date = st.date_input("Start Date", value=datetime.now())
     end_date = st.date_input("End Date", value=datetime.now())
+    name_filter = st.text_input("Name Filter")
+    email_filter = st.text_input("Email Filter")
+    number_filter = st.text_input("Mobile Number Filter")
 
-    if st.button("Generate Report"):
-        for entry in metadata:
-            try:
-                # Extract the timestamp from the filename
-                entry_date_str = entry['file'].split('_')[-1].split('.')[0]
-                entry_date = datetime.strptime(entry_date_str, "%Y%m%d_%H%M%S")
-                if start_date <= entry_date.date() <= end_date.date():
-                    st.image(entry['file'], caption=f"{entry['name']} - {entry['number']} - {entry.get('email', '')} on {entry_date}")
-            except ValueError as e:
-                logging.error(f"Error parsing date for file {entry['file']}: {e}")
+    filtered_metadata = [
+        entry for entry in metadata 
+        if (name_filter.lower() in entry['name'].lower() if name_filter else True) and
+           (email_filter.lower() in entry.get('email', '').lower() if email_filter else True) and
+           (number_filter in entry['number'] if number_filter else True) and
+           (start_date <= datetime.strptime(entry['file'].split('_')[-1].split('.')[0], "%Y%m%d_%H%M%S").date() <= end_date)
+    ]
+
+    for entry in filtered_metadata:
+        entry_date_str = entry['file'].split('_')[-1].split('.')[0]
+        entry_date = datetime.strptime(entry_date_str, "%Y%m%d_%H%M%S")
+        st.image(entry['file'], caption=f"{entry['name']} - {entry['number']} - {entry.get('email', '')} on {entry_date}")
+        st.write(f"Name: {entry['name']}")
+        st.write(f"Mobile Number: {entry['number']}")
+        st.write(f"Email: {entry.get('email', '')}")
+        st.write(f"Date & Time: {entry_date}")
+        st.write(f"Number of Appearances: {sum(1 for e in metadata if e['name'] == entry['name'])}")
+        st.write("---")
 
 def main():
     st.title("Face Detection and Capture")
