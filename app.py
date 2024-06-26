@@ -46,7 +46,7 @@ class VideoProcessor(VideoProcessorBase):
         self.lock = threading.Lock()
 
         # Initialize face recognizer
-        self.face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+        self.face_recognizer = cv2.face.LBPHFaceRecognizer.create()
         self.known_face_encodings = []
         self.known_face_metadata = []
 

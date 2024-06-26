@@ -28,6 +28,7 @@ MarkupSafe==2.1.5
 mdurl==0.1.2
 numpy==1.26.4
 opencv-python==4.9.0.80
+opencv-contrib-python
 packaging==24.0
 pandas==2.2.2
 pillow==10.3.0
